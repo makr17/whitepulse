@@ -1,0 +1,8 @@
+[package]
+name = "whitepulse"
+version = "0.1.0"
+authors = ["makr17 <bracher@gmail.com>"]
+
+[dependencies]
+rand = "0.3"
+sacn = "0.1.1"
