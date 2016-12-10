@@ -21,7 +21,8 @@ const UNIVERSE_SIZE: usize = 510;
 struct Params {
     decay:          f32,
     threshold:      f32,
-    max_brightness: f32
+    max_brightness: f32,
+    sleep:          Duration
 }
 
 #[derive(Debug)]
@@ -35,15 +36,18 @@ struct Pixel { level: i16, age: i16 }
 
 struct Zone  { head: u8, body: u8, tail: u8, name: String }
 
-fn main() {
+fn build_params () -> Params {
+    // seed default params
+    let mut params = Params { decay: 2_f32, threshold: 0.1, max_brightness: 75_f32, sleep: Duration::new(1, 500_000_000) };
+
+    // parse command line args and adjust params accordingly
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
-
-    let mut params = Params { decay: 2_f32, threshold: 0.1, max_brightness: 75_f32 };
     let mut opts = Options::new();
     opts.optopt("d", "decay", "slow decay by this factor, defaults to 2", "DECAY");
     opts.optopt("t", "threshold", "probablity that a pixel lights up, default 0.10", "THRESHOLD");
     opts.optopt("m", "maxbrightness", "maximum brightness, 1..255, default 75", "MAX");
+    opts.optopt("s", "sleep", "sleep interval in seconds, default 1.5", "SECONDS");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
         Err(f) => { panic!(f.to_string()) }
@@ -57,6 +61,19 @@ fn main() {
     if matches.opt_present("m") {
         params.max_brightness = matches.opt_str("m").unwrap().parse::<f32>().unwrap();
     }
+    if matches.opt_present("s") {
+        // take float seconds
+        // convert to int seconds and nanoseconds to make Duration happy
+        let seconds: f32 = matches.opt_str("s").unwrap().parse::<f32>().unwrap();
+        let whole_seconds: u64 = seconds as u64;
+        let nano_seconds: u32 = ((seconds - whole_seconds as f32) * 1_000_000_000_f32) as u32;
+        params.sleep = Duration::new(whole_seconds, nano_seconds);
+    }
+    return params;
+}
+
+fn main() {
+    let params = build_params();
 
     let dmx = DmxSource::new("Controller").unwrap();
 
@@ -70,6 +87,7 @@ fn main() {
     ];
 
     let mut lights: Vec<Pixel> = vec![];
+    // TODO: probably a more idiomatic way to built the default state
     for zone in zones.iter() {
         for i in 1..zone.body {
             let pixel = Pixel { level: 0, age: 0 };
@@ -77,8 +95,6 @@ fn main() {
         }
     }
 
-    // half of a second
-    let refresh = Duration::new(1, 500_000_000);
     let mut rng = rand::thread_rng();
     let bright_range = Range::new(0_f32, params.max_brightness);
     let zero_to_one = Range::new(0_f32, 1_f32);
@@ -114,7 +130,7 @@ fn main() {
             }
         }
         render(&lights, &zones, &dmx);
-        sleep(refresh);
+        sleep(params.sleep);
     }
     dmx.terminate_stream(1);
 }
