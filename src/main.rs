@@ -183,12 +183,12 @@ fn render( lights: &[Pixel], zones: &[Zone], dmx: &DmxSource ) {
     let mut universes = Vec::new();
     while out.len() > UNIVERSE_SIZE {
         let u = out.split_off(UNIVERSE_SIZE);
-        universes.push(u);
+        universes.push(out);
+        out = u;
     }
     universes.push(out);
-    // println!("{:?}", universes);
     let mut universe: u16 = 1;
-    while let Some(u) = universes.pop() {
+    for u in universes {
         dmx.send(universe, &u);
         universe += 1;
     }
