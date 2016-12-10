@@ -1,7 +1,10 @@
+use std::env;
 use std::f32;
 use std::thread::sleep;
 use std::time::Duration;
 
+extern crate getopts;
+use getopts::Options;
 extern crate rand;
 use rand::Rng;
 use rand::distributions::{IndependentSample,Range};
@@ -11,8 +14,15 @@ use sacn::DmxSource;
 const DECAY_FACTOR: f32 = 2_f32;
 const LIGHT_THRESHOLD: f32 = 0.10;
 const MAX_BRIGHTNESS: f32 = 75_f32;
-const NUM_LIGHTS: u16 = 20;
+
 const UNIVERSE_SIZE: usize = 510;
+
+#[derive(Debug)]
+struct Params {
+    decay:          f32,
+    threshold:      f32,
+    max_brightness: f32
+}
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -26,6 +36,28 @@ struct Pixel { level: i16, age: i16 }
 struct Zone  { head: u8, body: u8, tail: u8, name: String }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut params = Params { decay: 2_f32, threshold: 0.1, max_brightness: 75_f32 };
+    let mut opts = Options::new();
+    opts.optopt("d", "decay", "slow decay by this factor, defaults to 2", "DECAY");
+    opts.optopt("t", "threshold", "probablity that a pixel lights up, default 0.10", "THRESHOLD");
+    opts.optopt("m", "maxbrightness", "maximum brightness, 1..255, default 75", "MAX");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!(f.to_string()) }
+    };
+    if matches.opt_present("d") {
+        params.decay = matches.opt_str("d").unwrap().parse::<f32>().unwrap();
+    }
+    if matches.opt_present("t") {
+        params.threshold = matches.opt_str("t").unwrap().parse::<f32>().unwrap();
+    }
+    if matches.opt_present("m") {
+        params.max_brightness = matches.opt_str("m").unwrap().parse::<f32>().unwrap();
+    }
+
     let dmx = DmxSource::new("Controller").unwrap();
 
     let zones: [Zone; 6] = [
@@ -48,7 +80,7 @@ fn main() {
     // half of a second
     let refresh = Duration::new(1, 500_000_000);
     let mut rng = rand::thread_rng();
-    let bright_range = Range::new(0_f32, MAX_BRIGHTNESS);
+    let bright_range = Range::new(0_f32, params.max_brightness);
     let zero_to_one = Range::new(0_f32, 1_f32);
 
     loop {
@@ -56,7 +88,7 @@ fn main() {
             if light.level == 0 {
                 // light is currently dark
                 // test to see if we want to light it
-                if zero_to_one.ind_sample(&mut rng) < LIGHT_THRESHOLD {
+                if zero_to_one.ind_sample(&mut rng) < params.threshold {
                     // we do, so pick a random 
                     light.level = bright_range.ind_sample(&mut rng) as i16;
                     light.age += 1;
@@ -67,7 +99,7 @@ fn main() {
                 // probability of falling should go up as light ages
                 if zero_to_one.ind_sample(&mut rng) > 1.0/(light.age as f32) {
                     // falling
-                    light.level -= (bright_range.ind_sample(&mut rng)/DECAY_FACTOR) as i16;
+                    light.level -= (bright_range.ind_sample(&mut rng)/params.decay) as i16;
                     light.age += 1;
                     // test to see if we bottomed out
                     if light.level <= 0 {
@@ -76,7 +108,7 @@ fn main() {
                     }
                 } else {
                     // rising
-                    light.level += (zero_to_one.ind_sample(&mut rng) * (MAX_BRIGHTNESS - light.level as f32)) as i16;
+                    light.level += (zero_to_one.ind_sample(&mut rng) * (params.max_brightness - light.level as f32)) as i16;
                     light.age += 1;
                 }
             }
