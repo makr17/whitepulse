@@ -39,7 +39,7 @@ struct Zone  { head: u8, body: u8, tail: u8, name: String }
 
 fn build_params () -> Params {
     // seed default params
-    let mut params = Params { decay: 0.002, threshold: 0.001, max_intensity: 1_f32, sleep: Duration::new(0, 20_000_000) };
+    let mut params = Params { decay: 0.002, threshold: 0.001, max_intensity: 0.8_f32, sleep: Duration::new(0, 20_000_000) };
 
     // parse command line args and adjust params accordingly
     let args: Vec<String> = env::args().collect();
