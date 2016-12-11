@@ -33,13 +33,13 @@ struct RGB {
 
 #[derive(Debug)]
 #[derive(Clone)]
-struct Pixel { intensity: f32, age: u8, temp: u16, rgb: RGB }
+struct Pixel { intensity: f32, age: u32, temp: u16, rgb: RGB }
 
 struct Zone  { head: u8, body: u8, tail: u8, name: String }
 
 fn build_params () -> Params {
     // seed default params
-    let mut params = Params { decay: 2_f32, threshold: 0.1, max_intensity: 1_f32, sleep: Duration::new(0, 200_000_000) };
+    let mut params = Params { decay: 0.002, threshold: 0.001, max_intensity: 1_f32, sleep: Duration::new(0, 20_000_000) };
 
     // parse command line args and adjust params accordingly
     let args: Vec<String> = env::args().collect();
@@ -189,7 +189,7 @@ fn main() {
                     }
                 } else {
                     // rising
-                    light.intensity += zero_to_one.ind_sample(&mut rng) * (params.max_intensity - light.intensity);
+                    light.intensity += zero_to_one.ind_sample(&mut rng) * params.decay * (params.max_intensity - light.intensity);
                     
                     light.age += 1;
                     light.rgb = scale_rgb(kelvin(light.temp), light.intensity, &params);
