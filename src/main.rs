@@ -243,22 +243,24 @@ fn render( lights: &[Pixel], zones: &[Zone], dmx: &DmxSource ) {
     let mut idx: usize = 0;
     for zone in zones {
         // null pixels at head
-        for i in 1..zone.head {
+        for i in 0..zone.head {
             out.push(0); // Red
             out.push(0); // Green
             out.push(0); // Blue
         }
         // set via light.level in the body
-        for i in 0..(zone.body - 1) {
+        for i in 0..zone.body {
             let ref rgb = copy[idx].rgb;
             let gc = gamma_correct(&rgb);
             out.push(gc.red);
             out.push(gc.green);
             out.push(gc.blue);
             idx += 1;
+            // HACK: patching up an off-by-one somewhere
+            if idx == copy.len() { break };
         }
         // null pixels at tail
-        for i in 1..zone.tail {
+        for i in 0..zone.tail {
             out.push(0); // Red
             out.push(0); // Green
             out.push(0); // Blue
