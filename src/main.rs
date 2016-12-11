@@ -179,7 +179,22 @@ fn main() {
                     light.intensity -= (zero_to_one.ind_sample(&mut rng) * params.decay) as f32;
                     light.age += 1;
                     // test to see if we bottomed out
+                    // check if intensity fell below zero
                     if light.intensity <= 0_f32 {
+                        light.intensity = 0_f32;
+                        light.age = 0;
+                        light.temp = 0;
+                        light.rgb.red = 0;
+                        light.rgb.green = 0;
+                        light.rgb.blue = 0;
+                    }
+                    // count zeroes, to avoid single-color output
+                    //   when gamma-correct bottoms out, usually with red
+                    let mut zeroes: u8 = 0;
+                    if light.rgb.red == 0 { zeroes += 1 };
+                    if light.rgb.green == 0 { zeroes += 1 };
+                    if light.rgb.blue == 0 { zeroes += 1 };
+                    if zeroes >= 2 {
                         light.intensity = 0_f32;
                         light.age = 0;
                         light.temp = 0;
