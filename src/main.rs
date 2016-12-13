@@ -14,6 +14,7 @@ use sacn::DmxSource;
 const UNIVERSE_SIZE: usize = 510;
 
 const GAMMA: f32 = 2.2;
+const BOTTOM_THRESHOLD: u16 = 10;
 
 #[derive(Debug)]
 struct Params {
@@ -110,9 +111,20 @@ fn kelvin (mut temp: u16) -> RGB {
 
 fn gamma_correct(rgb: &RGB) -> RGB {
     let mut c: RGB = RGB {red: 0, green: 0, blue: 0 };
+    // short-circuit on null input
+    if rgb.red as u16 + rgb.green as u16 + rgb.blue as u16 == 0 {
+        return c;
+    }
     c.red   = (255_f32 * (rgb.red   as f32 / 255_f32).powf(GAMMA)) as u8;
     c.green = (255_f32 * (rgb.green as f32 / 255_f32).powf(GAMMA)) as u8;
     c.blue  = (255_f32 * (rgb.blue  as f32 / 255_f32).powf(GAMMA)) as u8;
+    // drop to null if the sum of all three color values falls below threshold
+    if (c.red as u16 + c.green as u16 + c.blue as u16) < BOTTOM_THRESHOLD {
+        // println!("{:?} bottomed out to {:?}", rgb, c);
+        c.red   = 0;
+        c.green = 0;
+        c.blue  = 0;
+    }
     return c;
 }
 
@@ -178,16 +190,6 @@ fn main() {
                     // falling
                     light.intensity -= (zero_to_one.ind_sample(&mut rng) * params.decay) as f32;
                     light.age += 1;
-                    // test to see if we bottomed out
-                    // check if intensity fell below zero
-                    if light.intensity <= 0_f32 {
-                        light.intensity = 0_f32;
-                        light.age = 0;
-                        light.temp = 0;
-                        light.rgb.red = 0;
-                        light.rgb.green = 0;
-                        light.rgb.blue = 0;
-                    }
                     // count zeroes, to avoid single-color output
                     //   when gamma-correct bottoms out, usually with red
                     let mut zeroes: u8 = 0;
